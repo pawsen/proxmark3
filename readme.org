@@ -1,0 +1,22 @@
+#+title: Proxmark3 notes
+
+* Install
+Remember to change the [[https://github.com/RfidResearchGroup/proxmark3/blob/master/doc/md/Use_of_Proxmark/4_Advanced-compilation-parameters.md#platform][platform]] to =PM3GENERIC= for the proxmark3 easy, before compiling the ICEMAN repo.
+
+hw version
+hw status
+
+** problems with flashing/bootloader
+
+"press button, keep it pressed, while you flash fullimage, once finished, release button,"
+: proxmark3 /dev/ttyACM0 --flash --unlock-bootloader --image bootrom.elf --image fullimage.elf
+
+
+* resources
+https://wiki.elvis.science/index.php?title=Proxmark3%3A_Useful_commands
+https://wiki.elvis.science/index.php?title=Mifare_Classic_Card_cloning_with_Proxmark3
+https://github.com/Proxmark/proxmark3/wiki/Mifare-Tag-Ops
+
+pdf and c-code(=iso14443a.c=) are Source code and tutorial how to emulate any FH Campus Card for the snack and drink machine.
+Downloaded from
+https://wiki.elvis.science/index.php?title=Proxmark3:_FH-Campus_Card_NFC_Security_Valuation&oldid=1968
