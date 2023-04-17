@@ -12,11 +12,77 @@ hw status
 : proxmark3 /dev/ttyACM0 --flash --unlock-bootloader --image bootrom.elf --image fullimage.elf
 
 
+* mifare classic
+
+** block 0
+From https://github.com/RfidResearchGroup/proxmark3/blob/master/doc/magic_cards_notes.md#mifare-classic
+#+begin_example
+UID 4b: (actually NUID as there are no more "unique" IDs on 4b)
+
+11223344440804006263646566676869
+^^^^^^^^                         UID
+        ^^                       BCC
+          ^^                     SAK(*)
+            ^^^^                 ATQA
+                ^^^^^^^^^^^^^^^^ Manufacturer data
+(*) some cards have a different SAK in their anticollision and in block0: +0x80 in the block0 (e.g. 08->88, 18->98)
+#+end_example
+- BCC is a checksum. Calculated by XOR-ing each UID byte with the result of the previous XOR
+  Computing BCC on UID 11223344 from proxmark3: ~analyse lcr -d 11223344~ = 44
+  or use https://nric.biz/mifare-bcc-calculator.html
+- SAK, ATQA are tag- and manufacturer ids. https://nfc-tools.github.io/resources/standards/iso14443A/
+  Use eg ~-s 08 -a 0040~.
+
+: hf mf csetuid --sak 08 --atqa 0004 --uid 6a7a7dcc
+: hf mf cwipe  # if card is bricked
+
+It is not necessary to set sak and atqu. ~csetuid~ automatically calculates =bcc=.
+
+** access bits
+
+Have a look to table 7 and 8 ([[file:mf/MF1S50YYX_V1.pdf][MIFARE Classic data sheet)]].
+You can see in table 7, with =0= combination of C1, C2 and C3 you can read the key A, so key A is a write-only value.
+C1 = 0, C2 = 0 and C3 = 1 is the so called “transport condition” for the sector trailer. With the known value of default key A = FF...FF you authenticate with key A to the sector and you are able to read the access condition (ac) bytes, the key B. You are also able to write to key A, the ac bytes, key B.
+Table 8 shows the ac bytes for the data blocks 0, 1 and 2. Here is the transport condition C1 = C2 = C3 = 0. This means, you can read, write, increment, decrement all data blocks either with key A or key B.
+
+You want to use key A for reading and key B for writing. This is the setting for the data blocks. In this case key A is known at the reader terminal. Let us assume you want to allow reading data block 0 (the customer ID) and decrement a credit (data value in block 1). But with key A it should not be possible to write to the ID data nor to increment the credit value. In this case C1 = 1, C2 = 1 and C3 = 0 is the ac combination for the data blocks (table 8). Writing end-user data or set a new value for the credit is only possible at the issuer station (with a cashbox) and only here the key B is known.
+
+The sector trailer ac combination could be C1 = 0, C2 = 1, C3 =1 (table 7). Key A and key B can never be read but can be written with key B.
+Okay, we have:
+#+begin_example
+C10 = 1, C20 = 1, C30 = 0,
+C11 = 1, C21 = 1, C31 = 0,
+C12 = 1, C22 = 1, C32 = 0,
+C13 = 0, C23 = 1, C33 = 1
+#+end_example
+
+With this information we go into figure 10 (page 12) and we get for bytes 6, 7 and 8:
+
+#+begin_example
+00001000  01110111  10001111 = 0x08778F
+#+end_example
+
+Byte 9 can be used also in a user application, you can set it as you like.
+** trace
+
+Read a block and play back the trace
+: hf mf rdbl --blk 0 --key FFFFFFFFFFFF
+: trace list -t mf
+
+Example:
+[[file:mf/mifare_classic_trace.png][trace]]
+
 * resources
+Technical documents, all you need to know and more.
+http://www.proxmark.org/files/Documents/13.56%20MHz%20-%20MIFARE%20Classic/
+
+But start with the following as an introduction.
+pdf and c-code(=iso14443a.c=) are Source code and tutorial how to emulate any FH Campus Card for the snack and drink machine.
+Downloaded from
+https://wiki.elvis.science/index.php?title=Proxmark3:_FH-Campus_Card_NFC_Security_Valuation&oldid=1968
+
+
 https://wiki.elvis.science/index.php?title=Proxmark3%3A_Useful_commands
 https://wiki.elvis.science/index.php?title=Mifare_Classic_Card_cloning_with_Proxmark3
 https://github.com/Proxmark/proxmark3/wiki/Mifare-Tag-Ops
 
-pdf and c-code(=iso14443a.c=) are Source code and tutorial how to emulate any FH Campus Card for the snack and drink machine.
-Downloaded from
-https://wiki.elvis.science/index.php?title=Proxmark3:_FH-Campus_Card_NFC_Security_Valuation&oldid=1968
